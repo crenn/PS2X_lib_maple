@@ -128,13 +128,13 @@ GNU General Public License for more details.
 #define CHK(x,y) (x & (1<<y))
 #define TOG(x,y) (x^=(1<<y))
 
-#define PS2X_DEBUG
+//#define PS2X_DEBUG
 
 
 
 class PS2X {
 public:
-PS2X(HardwareSPI &spi, SPIFrequency freq) : SPIn(spi), SPIspeed(freq) {}
+PS2X(HardwareSPI &spi, SPIFrequency freq = SPI_281_250KHZ) : SPIn(spi), SPIspeed(freq) {}
 boolean Button(uint16_t);
 unsigned int ButtonDataByte();
 boolean NewButtonState();
