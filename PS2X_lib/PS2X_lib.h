@@ -134,7 +134,7 @@ GNU General Public License for more details.
 
 class PS2X {
 public:
-PS2X(HardwareSPI &spi, SPIFrequency freq = SPI_281_250KHZ) : SPIn(spi), SPIspeed(freq) {}
+PS2X(HardwareSPI &spi, SPIFrequency freq = SPI_281_250KHZ, bool enACK = false) : SPIn(spi), SPIspeed(freq), waitforACK(enACK) {}
 boolean Button(uint16_t);
 unsigned int ButtonDataByte();
 boolean NewButtonState();
@@ -142,7 +142,7 @@ boolean NewButtonState(unsigned int);
 boolean ButtonPressed(unsigned int);
 boolean ButtonReleased(unsigned int);
 void read_gamepad(boolean = false, byte = 0x00);
-byte config_gamepad(uint8_t);
+byte config_gamepad(uint8_t att, uint8_t ack = 0);
 void enableRumble();
 void enablePressures();
 byte Analog(byte);
@@ -161,6 +161,8 @@ boolean en_Pressures;
 HardwareSPI &SPIn;
 SPIFrequency SPIspeed;
 uint8_t CSpin;
+uint8_t ACKpin;
+bool waitforACK;
 };
 
 #endif

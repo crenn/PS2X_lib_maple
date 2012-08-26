@@ -44,7 +44,23 @@ byte PS2X::Analog(byte button) {
 }
 unsigned char PS2X::_gamepad_shiftinout (char byte) {
    unsigned char tmp = SPIn.transfer(byte);
-   delayMicroseconds(CTRL_BYTE_DELAY); // Waiting for ack signal which isn't connected
+ #ifdef PS2X_COM_DEBUG
+   SerialUSB.println("Waiting for ack");
+ #endif
+   if(waitforACK) {
+     unsigned long time = micros();
+     while (digitalRead(ACKpin) == HIGH) {
+        if ((micros() - time) > (CTRL_BYTE_DELAY*2)) {
+          #ifdef PS2X_COM_DEBUG
+            SerialUSB.println("No ACK");
+          #endif
+            break;
+        }
+     }
+   }
+   else {
+     delayMicroseconds(CTRL_BYTE_DELAY); // Waiting for ack signal which isn't connected
+   }
    return tmp;
 }
 
@@ -68,25 +84,25 @@ if(motor2 != 0x00)
     //Send the command to send button and joystick data;
     char dword[9] = {0x01,0x42,0,motor1,motor2,0,0,0,0};
     byte dword2[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
-	#ifdef PS2X_COM_DEBUG
+    #ifdef PS2X_COM_DEBUG
     SerialUSB.println("OUT:IN");
-	#endif
+    #endif
     for (int i = 0; i<9; i++) {
-	  PS2data[i] = _gamepad_shiftinout(dword[i]);
-	  #ifdef PS2X_COM_DEBUG
-		SerialUSB.print(dword[i], HEX);
-		SerialUSB.print(":");
-		SerialUSB.println(PS2data[i], HEX);
-	  #endif
+      PS2data[i] = _gamepad_shiftinout(dword[i]);
+      #ifdef PS2X_COM_DEBUG
+        SerialUSB.print(dword[i], HEX);
+        SerialUSB.print(":");
+        SerialUSB.println(PS2data[i], HEX);
+      #endif
     }
     if(PS2data[1] == 0x79) {  //if controller is in full data return mode, get the rest of data
        for (int i = 0; i<12; i++) {
-	  PS2data[i+9] = _gamepad_shiftinout(dword2[i]);
-	  #ifdef PS2X_COM_DEBUG
-		SerialUSB.print(dword[i], HEX);
-		SerialUSB.print(":");
-		SerialUSB.println(PS2data[i], HEX);
-	  #endif
+      PS2data[i+9] = _gamepad_shiftinout(dword2[i]);
+      #ifdef PS2X_COM_DEBUG
+        SerialUSB.print(dword[i], HEX);
+        SerialUSB.print(":");
+        SerialUSB.println(PS2data[i], HEX);
+      #endif
        }
     }
     
@@ -96,12 +112,17 @@ if(motor2 != 0x00)
    last_read = millis();
 }
 
-byte PS2X::config_gamepad(uint8_t att) {
+byte PS2X::config_gamepad(uint8_t att, uint8_t ack) {
   
   SPIn.end();
   SPIn.begin(SPIspeed, LSBFIRST, 3);
   
   pinMode(SPIn.misoPin(), INPUT_PULLUP);
+  
+  if(waitforACK) {
+    ACKpin = ack;
+    pinMode(ACKpin, INPUT_PULLDOWN);
+  }
   
   CSpin = att;
   pinMode(CSpin, OUTPUT);
@@ -114,13 +135,13 @@ byte PS2X::config_gamepad(uint8_t att) {
    //see if it talked
    if(PS2data[1] != 0x41 && PS2data[1] != 0x73 && PS2data[1] != 0x79){ //see if mode came back. If still anything but 41, 73 or 79, then it's not talking
       #ifdef PS2X_DEBUG
-		SerialUSB.println("Controller mode not matched or no controller found");
-		SerialUSB.print("Expected 0x41 or 0x73, got ");
-		SerialUSB.println(PS2data[1], HEX);
-	  #endif
-	 
-	 return 1; //return error code 1
-	}
+        SerialUSB.println("Controller mode not matched or no controller found");
+        SerialUSB.print("Expected 0x41 or 0x73, got ");
+        SerialUSB.println(PS2data[1], HEX);
+      #endif
+     
+     return 1; //return error code 1
+    }
   
   //try setting mode, increasing delays if need be. 
   
@@ -136,13 +157,13 @@ byte PS2X::config_gamepad(uint8_t att) {
       break;
       
     if(y == 10){
-		#ifdef PS2X_DEBUG
-		SerialUSB.println("Controller not accepting commands");
-		SerialUSB.print("mode stil set at");
-		SerialUSB.println(PS2data[1], HEX);
-		#endif
+        #ifdef PS2X_DEBUG
+        SerialUSB.println("Controller not accepting commands");
+        SerialUSB.print("mode stil set at");
+        SerialUSB.println(PS2data[1], HEX);
+        #endif
       return 2; //exit function with error
-	  }
+      }
     
     read_delay += 10; //add 10ms to read_delay
   }
